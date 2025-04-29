@@ -2,6 +2,8 @@
 
 This is a custom UI Page built in ServiceNow to auto-generate detailed documentation for Script Includes. It also analyzes function-level usage and documentation quality.
 
+To simply deploy this tool in servicenow, just download this XML Update set and import/preview/commit in the target instance. 
+
 ## 🔍 Features
 - Select any Script Include from the instance
 - Auto-generate documentation Based on JSDoc comments format
