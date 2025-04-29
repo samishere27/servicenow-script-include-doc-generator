@@ -1,0 +1,73 @@
+#top_bar {
+            position: sticky;
+            top: 0;
+            background: white;
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+            z-index: 1000;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* Card Section */
+        .card-section {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+
+        /* Code Styling */
+        pre code {
+            background: #272822;
+            color: #f8f8f2;
+            padding: 10px;
+            display: block;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+
+        /* Buttons */
+        button {
+            padding: 8px 12px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Inputs and Select */
+        input,
+        select {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        /* Function Toggle */
+        .function-toggle {
+            background: none;
+            border: none;
+            color: #007bff;
+            font-size: 1em;
+            cursor: pointer;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        .function-toggle:hover {
+            text-decoration: underline;
+        }
+
+        .chevron {
+            display: inline-block;
+            width: 1em;
+        }
