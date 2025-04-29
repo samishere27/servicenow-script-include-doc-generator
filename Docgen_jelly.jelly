@@ -1,0 +1,181 @@
+<j:jelly xmlns:j="jelly:core" xmlns:g="glide" xmlns:gs="glide.script">
+
+    <!-- Stylesheet call-->
+
+    <g:evaluate>
+        var css = new GlideRecord("content_css");
+        css.addQuery("name", "DocGenStyle");
+        css.query()
+        css.next();
+        var cssid = ""+css.sys_id;
+    </g:evaluate>
+
+    <link href="${cssid}.cssdbx?" rel="stylesheet" type="text/css" />
+
+
+    <!-- Sticky Top Bar -->
+    <div id="top_bar">
+        <input type="text" id="si_filter" onkeyup="filterDropdown()" placeholder="🔍 Filter Script Includes..."> </input>
+        <select id="si_select" onchange="loadDoc()">
+            <option value="">-- Select Script Include --</option>
+        </select>
+
+        <!-- Export Buttons -->
+        <button id="exportBtn" onclick="downloadDoc('md')" style="display:none; margin-left: 10px;">📥 Export as Markdown</button>
+        <button id="exportTextBtn" onclick="downloadDoc('txt')" style="display:none; margin-left: 10px;">📝 Export as Text</button>
+        <button id="exportJsonBtn" onclick="downloadDoc('json')" style="display:none; margin-left: 10px;">🧩 Export as JSON</button>
+        <button onclick="toggleView('doc')">📄 View Documentation</button>
+        <button onclick="toggleView('code')">👨‍💻 View Raw Code</button>
+    </div>
+
+    <!-- Documentation Quality Score -->
+    <div class="card-section" id="quality_score" style="display:none;">
+        <h3>📈 Documentation Quality Score</h3>
+    </div>
+
+	
+    <!-- Documentation Area -->
+    <div class="card-section" id="doc_view" style="display: block;">
+        <h3>📄 Documentation</h3>
+    </div>
+
+	<!-- Function Collapsable functionality-->
+    <div id="function_controls" style="margin-bottom:10px;">
+        <button onclick="expandAllFunctions()">➕ Expand All</button>
+        <button onclick="collapseAllFunctions()">➖ Collapse All</button>
+    </div>
+
+    <!-- Function Usage Insights -->
+    <div class="card_section" id="function_insights" style="display:none;">
+        <h3>📊 Function Usage Insights</h3>
+        <ul id="insight_list"></ul>
+    </div>
+
+    <!-- Raw Code View-->
+    <div class="card-section" id="code_block" style="display:none;">
+        <h3>👨‍💻 Raw Script Code</h3>
+        <pre> <code id="code_view" style="white-space:pre;"></code></pre>
+    </div>
+
+    <!-- Hidden doc_output (legacy support) -->
+    <div id="doc_output" style="display:none;"></div>
+
+    
+    <!-- Scripts -->
+    <script>
+        function loadDropdown() {
+            var ga = new GlideAjax('ScriptIncludeDocGen');
+            ga.addParam('sysparm_name', 'getScriptIncludeNames');
+            ga.getXMLAnswer(function(response) {
+                var names = JSON.parse(response);
+                var select = document.getElementById('si_select');
+                names.forEach(function(name) {
+                    var option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    select.appendChild(option);
+                });
+
+                // Initial filtering (optional, to handle pre-filled search)
+                filterDropdown();
+            });
+        }
+
+        function loadDoc() {
+            var name = document.getElementById('si_select').value;
+            if (!name) return;
+            document.getElementById('doc_view').innerHTML = '';
+            document.getElementById('code_view').textContent = '';
+            document.getElementById('doc_output').innerHTML = '';
+            document.getElementById('function_insights').style.display = 'none';
+
+            var ga = new GlideAjax('ScriptIncludeDocGen');
+            ga.addParam('sysparm_name', 'getScriptIncludeDoc');
+            ga.addParam('sysparm_script_include_name', name);
+            ga.getXMLAnswer(function(response) {
+                var doc = JSON.parse(response);
+                var html = '<h3>' + doc.name + '</h3>';
+                html += '<p><strong>Description:</strong> ' + (doc.description || 'No description added to the script include') + '</p>';
+                if (doc.functions.length) {
+                    html += '<h4>Functions:</h4>';
+                    doc.functions.forEach(function(fn) {
+                        var fnId = 'fn_' + fn.name;
+                        html += '<button class="function-toggle" onclick="toggleFunction(\'' + fnId + '\')">➤ ' + fn.name + '(' + fn.params.join(', ') + ')</button>';
+                        html += '<div id="' + fnId + '" style="display:none;">';
+                        html += '<pre><code>' + (fn.doc || '// No documentation found') + '</code></pre>';
+                        html += '</div>';
+                    });
+                } else {
+                    html += '<p>No documented functions found. Ensure functions are preceded by a /** ... */ block.</p>';
+                }
+
+                //Show Export Buttons
+                document.getElementById('exportBtn').style.display = 'inline-block';
+                document.getElementById('exportTextBtn').style.display = 'inline-block';
+                document.getElementById('exportJsonBtn').style.display = 'inline-block';
+
+                //Show the copy button
+                document.getElementById('doc_view').innerHTML = html;
+                document.getElementById('code_view').textContent = doc.code;
+
+                // Function Usage Section
+                var usageHTML = '';
+                if (doc.functions.length) {
+                    doc.functions.forEach(function(fn) {
+                        usageHTML += '<li style="margin-bottom: 15px;">';
+                        usageHTML += '<div><strong>' + fn.name + '</strong>: used <strong><span id="total_references_' + fn.name + '">Loading...</span></strong> times</div>';
+                        usageHTML += '<button onclick="toggleExternalUsage(\'' + fn.name + '\')">';
+                        usageHTML += '<span id="chevron_external_' + fn.name + '" class="chevron">&#9654;</span> ';
+                        usageHTML += '<span id="text_external_' + fn.name + '">Show External Usage</span>';
+                        usageHTML += '</button>';
+
+                        usageHTML += '<ul id="external_usage_' + fn.name + '" style="display:none;" data-loaded="false"></ul>';
+                        usageHTML += '</li>'
+                    });
+                    document.getElementById('insight_list').innerHTML = usageHTML;
+                    document.getElementById('function_insights').style.display = 'block';
+                }
+                document.getElementById('doc_output').innerHTML = html;
+
+                // Documentation Quality Score
+                var scoreInfo = calculateDocScore(doc.functions);
+                document.getElementById("quality_score").innerHTML = '<h3>📈 Documentation Quality Score</h3><p>' + scoreInfo.feedback + '</p>';
+                document.getElementById("quality_score").style.display = "block";
+                toggleView('doc');
+            });
+        }
+
+        function toggleFunction(id) {
+            var el = document.getElementById(id);
+            if (el.style.display === 'none') {
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'none';
+            }
+        }
+
+        function toggleExternalUsage(functionName) {
+            var list = document.getElementById('external_usage_' + functionName);
+            var chevron = document.getElementById('chevron_external_' + functionName);
+            var text = document.getElementById('text_external_' + functionName);
+
+            if (list.style.display === 'none') {
+                list.style.display = 'block';
+                chevron.innerHTML = '&#9660;'; // Down arrow
+                text.innerText = 'Hide External Usage';
+
+                if (list.getAttribute('data-loaded') !== 'true') {
+                    loadExternalUsage(functionName);
+                    list.setAttribute('data-loaded', 'true');
+                }
+            } else {
+                list.style.display = 'none';
+                chevron.innerHTML = '&#9654;'; // Right arrow
+                text.innerText = 'Show External Usage';
+            }
+        }
+
+        window.onload = loadDropdown;
+    </script>
+
+</j:jelly>
